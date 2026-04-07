@@ -1,0 +1,78 @@
+version: "3.7"
+
+services:
+
+  ## -------------------- FRONTEND -------------------- ##
+  decrypthub_web:
+    image: sua-registry/decrypthub-web:latest
+    ## Para build local: comentar 'image' e descomentar 'build'
+    ## build:
+    ##   context: ./frontend
+    networks:
+      - MaiverNet
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.decrypthub_web.rule=Host(`decrypthub.seudominio.com`)
+        - traefik.http.routers.decrypthub_web.entrypoints=websecure
+        - traefik.http.routers.decrypthub_web.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.decrypthub_web.service=decrypthub_web
+        - traefik.http.services.decrypthub_web.loadbalancer.server.port=80
+
+  ## -------------------- BACKEND -------------------- ##
+  decrypthub_api:
+    image: sua-registry/decrypthub-api:latest
+    ## Para build local: comentar 'image' e descomentar 'build'
+    ## build:
+    ##   context: ./backend
+    networks:
+      - MaiverNet
+    environment:
+      - PORT=3000
+      - FRONTEND_URL=https://decrypthub.seudominio.com
+
+      ## Supabase
+      - SUPABASE_URL=https://xxxx.supabase.co
+      - SUPABASE_SERVICE_KEY=eyJhbGci...
+
+      ## Stripe
+      - STRIPE_SECRET_KEY=sk_live_...
+      - STRIPE_WEBHOOK_SECRET=whsec_...
+      - STRIPE_PRICE_STARTER=price_...
+      - STRIPE_PRICE_PRO=price_...
+      - STRIPE_PRICE_ENTERPRISE=price_...
+
+      ## Criptografia interna das Secret Keys (exatamente 32 chars)
+      - ENCRYPTION_KEY=sua_chave_de_32_caracteres_aqui_
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.decrypthub_api.rule=Host(`api.decrypthub.seudominio.com`)
+        - traefik.http.routers.decrypthub_api.entrypoints=websecure
+        - traefik.http.routers.decrypthub_api.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.decrypthub_api.service=decrypthub_api
+        - traefik.http.services.decrypthub_api.loadbalancer.server.port=3000
+
+networks:
+  MaiverNet:
+    external: true
+    name: MaiverNet
